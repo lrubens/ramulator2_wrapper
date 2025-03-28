@@ -1,9 +1,10 @@
 [package]
-name = "ramulator2-rs"
+name = "ramulator2_wrapper"
 version = "0.1.0"
 edition = "2018"
 authors = ["rubensl@stanford.edu"]
 description = "Rust bindings for Ramulator2 DRAM simulator"
+repository = "https://github.com/lrubens/ramulator2_wrapper"
 license = "MIT"
 build = "build.rs"
 
