@@ -1,5 +1,5 @@
 [package]
-name = "ramulator2_wrapper"
+name = "ramulator_wrapper"
 version = "0.1.0"
 edition = "2018"
 authors = ["rubensl@stanford.edu"]
