@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <queue>
 #include <set>
 #include <stdint.h>
@@ -19,6 +20,8 @@
 #include "base/request.h"
 #include "frontend/frontend.h"
 #include "memory_system/memory_system.h"
+#include "mutex"
+#include "atomic"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,24 +44,33 @@ public:
   }
 
   bool empty() const {
-    return in_queue.empty() && in_queue[0].empty() && outgoing_reqs == 0;
+    return out_queue.empty() && in_queue[0].empty() && outgoing_reqs == 0;
   }
 
 private:
-  uint64_t tCK = 0.0;
-  uint64_t num_outstanding_reads = 0;
-  uint64_t num_outstanding_writes = 0;
+  // uint64_t tCK = 0.0;
+  // uint64_t num_outstanding_reads = 0;
+  // uint64_t num_outstanding_writes = 0;
+  std::atomic<int> tCK{0};
+  std::atomic<int> num_outstanding_reads{0};
+  std::atomic<int> num_outstanding_writes{0};
+  std::atomic<int> outgoing_reqs{0};
   std::string config_path;
   bool initialized;
-  uint64_t outgoing_reqs;
   Ramulator::IFrontEnd *frontend;
   Ramulator::IMemorySystem *memory_system;
+  // TODO: Might not be needed
   std::vector<std::queue<std::pair<uint64_t, bool>>> in_queue;
   std::queue<uint64_t> out_queue;
+  std::mutex frontend_mutex;
+  // std::unordered_map<uint64_t, std::deque<PacketPtr>> outstandingReads;
+  // std::unordered_map<uint64_t, std::deque<PacketPtr>> outstandingWrites;
 };
 
 // Create a new ramulator simulator instance with the given config file
 void *ramulator_new(const char *config_path);
+
+void *ramulator_new_with_preset(const char *config_content);
 
 // Free a ramulator simulator instance
 void ramulator_free(void *sim);
@@ -72,11 +84,15 @@ bool ramulator_send_request(void *sim, uint64_t addr, bool is_write);
 // Advance the simulation by one cycle
 void ramulator_tick(void *sim);
 
+uint64_t ramulator_pop(void *sim);
+
 // Check if the simulation has finished processing all requests
 bool ramulator_is_finished(void *sim);
 
 // Get the current cycle count
 float ramulator_get_cycle(void *sim);
+
+bool ramulator_ret_available(void *sim);
 
 #ifdef __cplusplus
 }

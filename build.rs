@@ -36,7 +36,8 @@ fn main() {
     
     for lib_path in &possible_lib_paths {
         if PathBuf::from(lib_path).join("libramulator.so").exists() {
-            println!("cargo:rustc-link-search={}", lib_path);
+            println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_path);
+            println!("cargo:rustc-link-search=native={}", lib_path);
             ramulator_found = true;
             break;
         }
@@ -86,7 +87,8 @@ fn main() {
     builder
         .cpp(true)
         .file("cpp/ramulator2_wrapper.cpp")
-        .flag("-std=c++17") // Make sure we use C++17 as required by Ramulator2
+        .flag("-std=c++20") // Make sure we use C++17 as required by Ramulator2
+        .flag("-O2") // Make sure we use C++17 as required by Ramulator2
         .compile("ramulator2_wrapper");
     
     // Generate bindings only if the "generate-bindings" feature is enabled

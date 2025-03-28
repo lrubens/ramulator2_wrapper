@@ -1,6 +1,8 @@
 use std::ffi::CString;
 use std::panic;
 
+use serde::{Deserialize, Serialize};
+
 extern "C" {
     // Opaque simulator struct from the C++ wrapper, as declared in the header.
     pub fn ramulator_new(config_path: *const std::os::raw::c_char) -> *mut libc::c_void;
@@ -14,6 +16,9 @@ extern "C" {
         value: *mut f64,
     ) -> std::os::raw::c_int;
     pub fn ramulator_get_cycle(sim: *mut libc::c_void) -> u64;
+    pub fn ramulator_ret_available(ramulator: *mut libc::c_void) -> bool;
+    pub fn ramulator_available(ramulator: *mut libc::c_void, addr: u64, is_write: bool) -> bool;
+    pub fn ramulator_pop(sim: *mut libc::c_void) -> u64;
 }
 
 /// Memory request representation for Ramulator
@@ -23,8 +28,6 @@ pub struct MemoryRequest {
     pub address: u64,
     /// Whether this is a write request (true) or read request (false)
     pub is_write: bool,
-    /// Size of the request in bytes
-    pub size: usize,
 }
 
 /// Safe Rust wrapper for Ramulator2 memory system
@@ -32,8 +35,28 @@ pub struct RamulatorWrapper {
     sim: *mut libc::c_void,
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum PresetConfigs {
+    HBM,
+    HBM2,
+    HBM3,
+}
+
 impl RamulatorWrapper {
     pub fn new(config_path: &str) -> Self {
+        let config_c_str = CString::new(config_path).unwrap();
+
+        let sim = unsafe { ramulator_new(config_c_str.as_ptr()) };
+
+        if sim.is_null() {
+            panic!("Failed to create Ramulator system");
+        }
+
+        RamulatorWrapper { sim }
+    }
+
+    pub fn new_with_preset(config_path: &str) -> Self {
         let config_c_str = CString::new(config_path).unwrap();
 
         let sim = unsafe { ramulator_new(config_c_str.as_ptr()) };
@@ -50,6 +73,14 @@ impl RamulatorWrapper {
         unsafe { ramulator_send_request(self.sim, request.address, request.is_write) }
     }
 
+    pub fn available(&self, addr: u64, is_write: bool) -> bool {
+        unsafe { ramulator_available(self.sim, addr, is_write) }
+    }
+
+    pub fn ret_available(&self) -> bool {
+        unsafe { ramulator_ret_available(self.sim) }
+    }
+
     pub fn tick(&self) {
         unsafe { ramulator_tick(self.sim) };
     }
@@ -63,6 +94,10 @@ impl RamulatorWrapper {
         unsafe {
             ramulator_free(self.sim);
         }
+    }
+
+    pub fn pop(&self) -> u64 {
+        unsafe { ramulator_pop(self.sim) }
     }
 }
 
@@ -86,13 +121,16 @@ mod tests {
         // Send the request
         for i in 0..1000000 {
             let read_request = MemoryRequest {
-                address: i,
+                address: i + 0x1000,
                 is_write: false,
-                size: 64, // 64 bytes (cache line size)
             };
             while !ramulator.send_request(read_request.clone()) {
                 ramulator.tick();
             }
+        }
+
+        while ramulator.ret_available() {
+            let _ = ramulator.pop();
         }
 
         println!("Elapsed cycles: {}", ramulator.get_cycle());

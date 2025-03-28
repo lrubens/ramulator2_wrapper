@@ -20,6 +20,7 @@ RamulatorWrapper::RamulatorWrapper(const char *config_path)
 
   // Parse configuration
   auto config = Ramulator::Config::parse_config_file(config_path, {});
+  // auto test = Ramulator::Config::parse_content(config_path, {});
 
   // Create frontend with the configuration
   // frontend = std::make_unique<Ramulator::Frontend>(*(config));
@@ -44,42 +45,52 @@ bool RamulatorWrapper::send_request(uint64_t addr, bool is_write) {
     throw std::runtime_error("Ramulator instance not initialized");
   }
 
+  std::lock_guard<std::mutex> lock(frontend_mutex);
+
   bool enqueue_success = false;
 
   if (is_write) {
     enqueue_success = frontend->receive_external_requests(
         1, addr, 0, [this](Ramulator::Request &req) {
           this->out_queue.push(req.addr);
-          // std::cout << "Enqueue write request" << std::endl;
-          --num_outstanding_writes;
+          // int chan_id = req.addr_vec[0];
+          std::atomic_fetch_sub(&num_outstanding_writes, 1);
         });
+
+    if (enqueue_success) {
+      // std::cout << "Request enqueued successfully" << std::endl;
+      // auto &packet = outstandingReads.find(addr)->second;
+      std::atomic_fetch_add(&num_outstanding_writes, 1);
+    } else {
+      // std::cout << "Request enqueue failed (queue full)" << std::endl;
+    }
   } else {
     enqueue_success = frontend->receive_external_requests(
         0, addr, 0, [this](Ramulator::Request &req) {
-          // std::cout << "Enqueue read request" << std::endl;
-          --num_outstanding_reads;
+          this->out_queue.push(req.addr);
+          std::atomic_fetch_sub(&num_outstanding_reads, 1);
         });
-  }
-
-  // TODO: Figure out what needs to be added here
-  if (enqueue_success) {
-    // std::cout << "Request enqueued successfully" << std::endl;
-    outgoing_reqs++;
-  } else {
-    // std::cout << "Request enqueue failed (queue full)" << std::endl;
+    if (enqueue_success) {
+      // std::cout << "Request enqueued successfully" << std::endl;
+      // auto &packet = outstandingReads.find(addr)->second;
+      std::atomic_fetch_add(&num_outstanding_reads, 1);
+    } else {
+      // std::cout << "Request enqueue failed (queue full)" << std::endl;
+    }
   }
 
   return enqueue_success;
 }
 
 void RamulatorWrapper::tick() {
-  tCK++;
+  std::atomic_fetch_add(&tCK, 1);
   frontend->tick();
   memory_system->tick();
 }
 
 bool RamulatorWrapper::is_finished() {
   return frontend->is_finished();
+  // return num_outstanding_reads == 0 && num_outstanding_writes == 0 && frontend->is_finished();
   // return outgoing_reqs == 0 && frontend->is_finished();
 }
 
@@ -97,6 +108,7 @@ void ramulator_free(void *sim) {
 
 bool ramulator_send_request(void *sim, uint64_t addr, bool is_write) {
   if (!sim) {
+    std::cerr << "Simulator instance is null" << std::endl;
     return false;
   }
   auto sim_wrapper = (RamulatorWrapper *)sim;
@@ -105,13 +117,26 @@ bool ramulator_send_request(void *sim, uint64_t addr, bool is_write) {
 
 void ramulator_tick(void *sim) {
   auto sim_wrapper = (RamulatorWrapper *)sim;
+  if (!sim_wrapper) {
+    std::cerr << "Error: Simulator instance is null" << std::endl;
+    return;
+  }
   sim_wrapper->tick();
+}
+
+uint64_t ramulator_pop(void *sim) {
+  auto sim_wrapper = (RamulatorWrapper *)sim;
+  if (!sim_wrapper) {
+    std::cerr << "Error: Simulator instance is null" << std::endl;
+    return 0;
+  }
+  return sim_wrapper->pop();
 }
 
 bool ramulator_is_finished(void *sim) {
   auto sim_wrapper = (RamulatorWrapper *)sim;
   if (!sim_wrapper) {
-    std::cerr << "Simulator instance is null" << std::endl;
+    std::cerr << "Error: Simulator instance is null" << std::endl;
     return false; // Treat as not finished if invalid
   }
 
@@ -121,8 +146,19 @@ bool ramulator_is_finished(void *sim) {
 float ramulator_get_cycle(void *sim) {
   auto sim_wrapper = (RamulatorWrapper *)sim;
   if (!sim_wrapper) {
+    std::cerr << "Error: Simulator instance is null" << std::endl;
     return 0;
   }
 
   return sim_wrapper->get_cycle();
+}
+
+bool ramulator_ret_available(void *sim) {
+  auto sim_wrapper = (RamulatorWrapper *)sim;
+  if (!sim_wrapper) {
+    std::cerr << "Error: Simulator instance is null" << std::endl;
+    return false;
+  }
+
+  return sim_wrapper->return_available();
 }
