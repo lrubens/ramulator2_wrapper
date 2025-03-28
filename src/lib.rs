@@ -31,6 +31,7 @@ pub struct MemoryRequest {
 }
 
 /// Safe Rust wrapper for Ramulator2 memory system
+#[derive(Debug)]
 pub struct RamulatorWrapper {
     sim: *mut libc::c_void,
 }
@@ -41,6 +42,16 @@ pub enum PresetConfigs {
     HBM,
     HBM2,
     HBM3,
+}
+
+impl PresetConfigs {
+    pub fn to_str(&self) -> &str {
+        match self {
+            PresetConfigs::HBM => "configs/hbm.yaml",
+            PresetConfigs::HBM2 => "configs/hbm2.yaml",
+            PresetConfigs::HBM3 => "configs/hbm3.yaml",
+        }
+    }
 }
 
 impl RamulatorWrapper {
@@ -56,8 +67,8 @@ impl RamulatorWrapper {
         RamulatorWrapper { sim }
     }
 
-    pub fn new_with_preset(config_path: &str) -> Self {
-        let config_c_str = CString::new(config_path).unwrap();
+    pub fn new_with_preset(config: PresetConfigs) -> Self {
+        let config_c_str = CString::new(config.to_str()).unwrap();
 
         let sim = unsafe { ramulator_new(config_c_str.as_ptr()) };
 
@@ -115,12 +126,12 @@ impl Drop for RamulatorWrapper {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MemoryRequest, RamulatorWrapper};
+    use crate::{MemoryRequest, PresetConfigs, RamulatorWrapper};
 
     #[test]
     fn ffi_test() -> Result<(), Box<dyn std::error::Error>> {
         // Initialize Ramulator with a config file
-        let ramulator = RamulatorWrapper::new("hbm.yaml");
+        let ramulator = RamulatorWrapper::new_with_preset(PresetConfigs::HBM2);
 
         // Send the request
         for i in 0..1000000 {

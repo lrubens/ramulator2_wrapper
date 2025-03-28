@@ -2,20 +2,20 @@ Frontend:
   impl: GEM5
   clock_ratio: 1
   num_expected_insts: 500000
-  llc_capacity_per_core: 2MB
+  llc_capacity_per_core: 1MB
 
 Translation:
-    impl: RandomTranslation
+    impl: NoTranslation
     max_addr: 2147483648
               
 
 MemorySystem:
   impl: GenericDRAM
-  clock_ratio: 3
+  clock_ratio: 1
 
   DRAM:
     RFM:
-      BRC: 2
+      BRC: 4
     impl: HBM2
     org:
       preset: HBM2_2Gb
@@ -26,8 +26,10 @@ MemorySystem:
 
   Controller:
     impl: Generic
+    queue_size: 512
     Scheduler:
       impl: FRFCFS
+      cap: 16
     RefreshManager:
       impl: AllBank
     RowPolicy:
@@ -36,4 +38,6 @@ MemorySystem:
     plugins:
 
   AddrMapper:
+    # impl: ChRaBaRoCo
+    # impl: BaRoChRaCo
     impl: RoBaRaCoCh
