@@ -1,51 +1,16 @@
-// fn main() {
-//     let dst = cmake::Config::new(".")
-//         .build();
-//     let ram = cmake::Config::new("ext/ramulator2")
-//         .build();
-//     println!("cargo:rustc-link-search=native={}", ram.display());
-//     println!("cargo:rustc-link-lib=ramulator");
-//     println!("cargo:rustc-link-search=native={}", dst.display());
-//     println!("cargo:rustc-link-lib=static=ramulator_wrapper");
-//     if cfg!(target_os = "linux") {
-//         println!("cargo:rustc-link-lib=stdc++");
-//     } else if cfg!(target_os = "macos") {
-//         println!("cargo:rustc-link-lib=c++");
-//     }
-
-// }
-
 use std::env;
 use std::path::PathBuf;
 
 fn main() {
     // Tell cargo to invalidate the built crate whenever the wrapper changes
+    // https://github.com/CMU-SAFARI/ramulator2.git
+    let dst = cmake::Config::new("ext/ramulator2")
+        .build();
     println!("cargo:rerun-if-changed=cpp/ramulator2_wrapper.cpp");
     println!("cargo:rerun-if-changed=cpp/ramulator2_wrapper.h");
     
-    // First, try to find Ramulator2 in the standard location
-    let mut ramulator_found = false;
-    
-    // Try different possible locations for the Ramulator2 library
-    let possible_lib_paths = [
-        "/usr/local/lib",
-        "/usr/lib",
-        "ext/ramulator2/build", // Local ext directory
-        "ext/ramulator2/", // Local ext directory
-    ];
-    
-    for lib_path in &possible_lib_paths {
-        if PathBuf::from(lib_path).join("libramulator.so").exists() {
-            println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_path);
-            println!("cargo:rustc-link-search=native={}", lib_path);
-            ramulator_found = true;
-            break;
-        }
-    }
-    
-    if !ramulator_found {
-        println!("cargo:warning=Could not find libramulator.so in standard locations. Make sure Ramulator2 is installed properly.");
-    }
+    // println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_path);
+    println!("cargo:rustc-link-search=native={}", dst.display());
     
     // Link to the Ramulator shared library
     println!("cargo:rustc-link-lib=ramulator");

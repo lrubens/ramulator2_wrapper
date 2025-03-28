@@ -73,6 +73,10 @@ impl RamulatorWrapper {
         unsafe { ramulator_send_request(self.sim, request.address, request.is_write) }
     }
 
+    pub fn send(&self, addr: u64, is_write: bool) -> bool {
+        unsafe { ramulator_send_request(self.sim, addr, is_write) }
+    }
+
     pub fn available(&self, addr: u64, is_write: bool) -> bool {
         unsafe { ramulator_available(self.sim, addr, is_write) }
     }
@@ -124,7 +128,8 @@ mod tests {
                 address: i + 0x1000,
                 is_write: false,
             };
-            while !ramulator.send_request(read_request.clone()) {
+            // while !ramulator.send_request(read_request.clone()) {
+            while !ramulator.send(i, false) {
                 ramulator.tick();
             }
         }
