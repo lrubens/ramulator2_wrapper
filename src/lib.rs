@@ -36,6 +36,9 @@ pub struct RamulatorWrapper {
     sim: *mut libc::c_void,
 }
 
+unsafe impl Send for RamulatorWrapper {}
+unsafe impl Sync for RamulatorWrapper {}
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PresetConfigs {
