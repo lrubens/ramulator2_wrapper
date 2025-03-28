@@ -17,6 +17,8 @@ fn main() {
     println!("cargo:rustc-link-lib=stdc++");
     // println!("cargo:rustc-link-lib=yaml-cpp");
     println!("cargo:rustc-link-lib=fmt");
+
+    println!("cargo:lib-path={}", lib_path);
     
     // Build the C++ wrapper
     let mut builder = cc::Build::new();
