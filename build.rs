@@ -15,7 +15,8 @@ fn main() {
 
     
     println!("cargo:rustc-link-lib=stdc++");
-    // println!("cargo:rustc-link-lib=yaml-cpp");
+    println!("cargo:rustc-link-lib=yaml-cpp");
+    println!("cargo:rustc-link-lib=spdlog");
     println!("cargo:rustc-link-lib=fmt");
 
     println!("cargo:lib-path={}", lib_path);
@@ -23,6 +24,9 @@ fn main() {
     // Build the C++ wrapper
     let mut builder = cc::Build::new();
     builder.include("ext/ramulator2/src");
+    builder.include("ext/spdlog/include");
+    builder.include("ext/yaml-cpp/include");
+    builder.include("ext/argparse/include");
     builder
         .cpp(true)
         .file("cpp/ramulator2_wrapper.cpp")
